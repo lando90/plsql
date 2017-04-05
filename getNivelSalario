@@ -1,3 +1,6 @@
+//OJO CON EL DELIMITER
+
+
 use ejercicioregiones
 drop procedure if exists getNivelSalario;
 delimiter //
