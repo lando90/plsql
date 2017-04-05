@@ -1,0 +1,25 @@
+use ejercicioregiones
+drop procedure if exists getNivelSalario;
+delimiter //
+create procedure getNivelSalario(IN p_empleadosID INT)
+begin
+	declare sueldo FLOAT;
+    declare region VARCHAR(20);
+    
+	select salario into sueldo from empleados where id = p_empleadosID;
+    
+    select regiones.nombre into region
+    from empleados, departamentos,ubicaciones,paises,regiones
+    where empleados.id = p_empleadosID
+    and empleados.idDepartamento = departamentos.id
+    and departamentos.idUbicaciones = ubicaciones.id
+    and ubicaciones.idPaises = paises.id
+    and paises.idRegiones = regiones.id;
+    
+    if((sueldo <3000) and (region not like 'Europa')) then
+		set sueldo = sueldo*1.05;
+        update empleados set salario = sueldo
+        where empleados.id = p_empleadosID;
+	end if;
+end//
+delimiter ;
