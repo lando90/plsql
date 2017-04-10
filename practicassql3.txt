@@ -1,0 +1,193 @@
+﻿Actividades Complementarias(pantallazos)
+
+Práctica varios ejercicios:
+
+1. Listar nombres de las diferentes regiones del mundo donde haya mas de dos ubicaciones .
+2. Listas los 3 primeros países en orden alfabético con mayor numero de empleados.
+3. Listas todos los ubicaciones donde la media de salarios es mayor que 1200.
+4. Listas todos los departamentos donde la media de salarios es mayor que la media salarial 
+global.
+5. Listar nombres de  las 5 ubicaciones con mas empleados .
+6. Listar los distintos países (y sus códigos) que tienen  menos ubicaciones que 
+en la media global
+7. Listar nombres y apellidos de empleados donde la ubicacion tiene una mas empleados 
+que la media global
+8. Listar 3 puestos cuyos intervalos temporales sean mayor que la media global
+9. Crear procedures de update para salarios de cualquier departamento que ganen menos de
+ 2000 de una ubicacion determinada distinta de Europa menos Shangai y lleven mas de un año.
+10.Crear funcion que agregue salarios con aumento del 3% en departamento determinado con
+ fecha entrada de un año solo en region de Europa. 
+ 
+======
+1
+======
+select r.nombre, count(u.id) as 'num_ubicaciones' from regiones r
+inner join paises p on p.idRegiones = r.id
+inner join ubicaciones u on u.idPaises = p.id
+group by r.nombre
+having count(u.id)>2;
+
+======
+2
+======
+select temp.nombre,temp.num_emp  from (
+	select p.nombre as nombre, count(e.id) as num_emp from paises p
+	inner join ubicaciones u on u.idPaises = p.id
+	inner join departamentos d on d.idUbicaciones = u.id
+	inner join empleados e on e.idDepartamento = d.id
+	group by p.nombre
+	order by  count(e.id) desc
+	limit 3) temp
+order by nombre
+
+======
+3
+======
+select u.nombre as "Ubicacion", AVG(e.salario) as "media salario" from ubicaciones u
+inner join departamentos d on d.idUbicaciones = u.id
+inner join empleados e on d.id = e.idDepartamento
+group by u.nombre
+having avg(e.salario>1200)
+
+======
+4
+======
+SELECT ubicaciones.nombre as 'ubicacion', departamentos.nombre as 'depart', AVG(salario) as 'salario_medio'
+FROM empleados, ubicaciones, departamentos
+WHERE departamentos.idUbicaciones=ubicaciones.id 
+	AND empleados.idDepartamento=departamentos.id
+GROUP BY departamentos.nombre, ubicaciones.nombre
+HAVING AVG(salario) > (SELECT AVG(empleados.salario) FROM empleados);
+
+======
+5
+======
+select u.nombre as nombre, count(e.id) as num_emp from ubicaciones u
+	inner join departamentos d on d.idUbicaciones = u.id
+	inner join empleados e on e.idDepartamento = d.id
+	group by u.nombre
+	order by  count(e.id) desc
+	limit 5
+
+======
+
+6
+
+======
+select paises.id as 'cod_pais', paises.nombre as 'pais', count(ubicaciones.id) as 'num_ubicaciones'
+from ubicaciones, paises
+where ubicaciones.idPaises = paises.id
+group by (paises.nombre)
+having count(ubicaciones.id) <= (select AVG(cta_ubicaciones) from (
+	select count(ubicaciones.id) as cta_ubicaciones
+	from ubicaciones,paises
+	where ubicaciones.idPaises = paises.id
+	group by (paises.nombre)) as cta);
+
+======
+
+7
+
+======
+select empleados.nombre as 'nombre', empleados.apellido as 'apellidos', ubic.nombre as 'sede'
+from empleados,departamentos,(
+	select ubicaciones.id, ubicaciones.nombre
+	from empleados, departamentos, ubicaciones
+	where ubicaciones.id = departamentos.idUbicaciones
+	and departamentos.id = empleados.idDepartamento
+	group by ubicaciones.nombre 
+	having count(empleados.id)>(
+		select avg(count) 
+		from (
+			select count(empleados.id) as count
+			from empleados,departamentos, ubicaciones
+			where ubicaciones.id=departamentos.idUbicaciones
+			and departamentos.id = empleados.idDepartamento
+			group by ubicaciones.nombre
+		) as blabla
+	)
+) as ubic
+where ubic.id=departamentos.idUbicaciones
+and departamentos.id=empleados.idDepartamento;
+
+======
+
+8
+======
+select puesto.nombre as 'Puesto', TIMESTAMPDIFF(month, puesto.fecha_entrada, puesto.fecha_salida) as intervalo
+from puesto
+group by(puesto.nombre)
+having intervalo > (
+	select avg(TIMESTAMPDIFF(month,puesto.fecha_entrada, puesto.fecha_salida))
+	from puesto
+);
+
+======
+
+9
+
+======
+  DELIMITER $$
+	DROP PROCEDURE IF EXISTS modificarSalario; 
+	CREATE PROCEDURE modificarSalario(IN empleId INT)
+	BEGIN
+		DECLARE sueldo FLOAT;
+		DECLARE region VARCHAR(20);
+		
+		SELECT salario INTO sueldo
+		FROM empleados
+		WHERE id = empleId;
+		
+		SELECT regiones.nombre INTO region
+		FROM empleados,departamentos,ubicaciones, paises, regiones
+		WHERE empleados.id = p_empleadosId
+		AND empleados.id_departamento = departamentos.id
+		AND departamentos.id_ubicaciones = ubicaciones.id
+		AND ubicaciones.id_pais = paises.id
+		AND paises.id_region = regiones.id;
+		
+		
+		IF ((sueldo < 2000) AND (region NOT LIKE 'Europa')) THEN
+			SET sueldo = sueldo * 1.05;
+			UPDATE empleados SET salario = sueldo
+			WHERE empleados.id = empleId;
+		END IF;
+		
+	END; $$
+	DELIMITER;
+
+======
+
+10
+
+======
+DELIMITER $$
+	DROP PROCEDURE IF EXISTS modificarSalarioMasUnAnyoEuropa; 
+	CREATE PROCEDURE modificarSalarioMasUnAnyoEuropa(IN empleId INT)
+	BEGIN
+		DECLARE earns FLOAT;
+		DECLARE region VARCHAR(20);
+		DECLARE condicion TIMESTAMP;
+		
+		SELECT TIMESTAMPDIFF(month,empleado.fecha_entrada,now()) into condicion 
+		FROM empleado ;
+	       
+		SELECT salario INTO earns
+		FROM empleados
+		WHERE id = empleId;
+		
+		SELECT regiones.nombre INTO region
+		FROM empleados,departamentos,ubicaciones, paises, regiones
+		WHERE empleados.id = p_empleadosId
+		AND empleados.id_departamento = 8
+		AND departamentos.id_ubicaciones = ubicaciones.id
+		AND ubicaciones.id_pais = paises.id
+		AND paises.id_region = regiones.id;
+		
+		IF (( earns < 2400) AND (region  LIKE 'Europa') AND (condicion > 12)) THEN
+			SET earns =earns*1.03;
+		UPDATE empleados SET salario = earns WHERE empleados.id = p_empleadosId and empleados.id_departamento = 8;
+		END IF;
+		
+	END; $$
+	DELIMITER;
